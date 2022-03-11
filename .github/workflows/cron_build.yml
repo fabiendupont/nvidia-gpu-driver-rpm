@@ -1,0 +1,42 @@
+---
+name: Build and release NVIDIA GPU precompiled driver RPM
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v3
+      - id: set-matrix
+        run: |
+          matrix=$(cat ${GITHUB_WORKSPACE}/build-matrix.json)
+          matrix="${matrix//'%'/'%25'}"
+          matrix="${matrix//$'\n'/'%0A'}"
+          matrix="${matrix//$'\r'/'%0D'}"
+          echo "::set-output name=matrix::${matrix}"
+
+  debug-matrix:
+    needs: build-matrix
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "${{ needs.build-matrix.outputs.matrix }}"
+
+  build-rpm:
+    needs: build-matrix
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: ${{ fromJson(needs.build-matrix.outputs.matrix) }}
+    steps:
+      - id: print-matrix-element
+        run: |
+          echo -e "DRIVER:\t${{ matrix.versions.driver }}"
+          echo -e "KERNEL:\t${{ matrix.versions.kernel }}"
+          echo -e "ARCH:\t${{ matrix.versions.arch }}"
